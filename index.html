@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Evolve An Image</title>
+		<script type="text/coffeescript">
+			$(document).ready ->
+
+				imageDistance = (a, b) ->
+					sum = 0
+					for i in [0...Math.min a.length, b.length] by 1
+						sum += Math.pow (a[i] - b[i]), 2
+					Math.sqrt(sum)
+
+				canvas = $.synth("canvas.stop").appendTo("body")
+				$.Promise.image($("body > img").select('src').first()).wait (err, image) ->
+					{width, height} = $(image).select('width','height').first()
+					canvas.attr {width, height}
+					context = canvas.first().getContext('2d')
+					context.clear = (c = 'black') ->
+						@fillStyle = c
+						@fillRect 0,0,width,height
+					context.randomTriangle = ->
+						offset = randomPoint().scale(.75)
+						@beginPath()
+						@moveTo (a = randomPoint().scale(.25).plus offset)...
+						@lineTo randomPoint().scale(.25).plus(offset)...
+						@lineTo randomPoint().scale(.25).plus(offset)...
+						@lineTo a...
+						@closePath()
+						@fillStyle = randomColor()
+						@fill()
+					randomPoint = -> $ $.random.integer(0, width), $.random.integer(0,height)
+
+					colorAlphabet = "0123456789ABCDEF"
+					randomColor = -> "#" + $.zeros(6).map(-> $.random.element colorAlphabet).join ""
+
+					context.drawImage image, 0, 0, width, height
+					original = context.getImageData 0, 0, width, height
+
+					context.clear()
+
+					best = context.getImageData 0,0,width,height
+					best.dist = imageDistance(best.data, original.data)
+
+					stopped = false
+					$(".stop").click -> stopped = !stopped
+
+					frame = ->
+						context.randomTriangle()
+						current = context.getImageData 0, 0, width, height
+						current.dist = imageDistance current.data, original.data
+						if current.dist < best.dist
+							$.log "Current: #{current.dist.toFixed 2} vs #{best.dist.toFixed 2}"
+							best = current
+						context.putImageData best, 0, 0
+						if best.dist > 100 and not stopped
+							setTimeout frame, 0
+
+					setTimeout frame, 0
+		</script>
+	</head>
+	<body>
+		<img src="monalisa.jpg" class="stop"/>
+		<script src="./js/bling.js"></script>
+		<script src="./js/coffee-script.js"></script>
+	</body>
+</html>
+
