@@ -58,6 +58,7 @@
 								video.pause()
 								context.drawImage video, 0, 0, width, height
 								cb null, video
+								$("video").remove()
 					onError = (err) -> cb err, null
 					navigator.getUserMedia { video: true }, onVideo, onError
 
