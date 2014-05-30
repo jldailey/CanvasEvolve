@@ -6,12 +6,15 @@
     var best, canvas, context, current, frame, height, imageDistance, last_frame, original, randomColor, randomPoint, runtime, setGradient, setupImage, setupStage, setupVideo, stageReady, stopped, triangleCount, trianglesKept, verbose, width;
     console.log("setting up...");
     imageDistance = function(a, b) {
-      var i, sum, _i, _ref;
-      sum = 0;
+      var i, sum, x, y, z, _i, _ref;
+      sum = 0 | 0;
       for (i = _i = 0, _ref = Math.min(a.length, b.length); _i < _ref; i = _i += 1) {
-        sum += Math.pow(a[i] - b[i], 2);
+        x = a[i] | 0;
+        y = b[i] | 0;
+        z = (x - y) | 0;
+        sum += Math.pow(z, 2) | 0;
       }
-      return Math.sqrt(sum);
+      return Math.sqrt(sum) | 0;
     };
     original = best = current = null;
     stopped = false;
