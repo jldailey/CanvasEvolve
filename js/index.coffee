@@ -8,30 +8,40 @@ $(document).ready ->
 			sum += Math.pow (a[i] - b[i]), 2
 		Math.sqrt(sum)
 
-	# These will be the 3 image datas that we track
+	# These are the 3 imageData objects that we track:
 	original = best = current = null
+
+	# A flag to stop improving the best image
 	stopped = false
 
 	# The dimensions of the image we will learn
-	width = height = 0
+	size = Math.min(window.innerWidth, window.innerHeight)
+	[ width, height ] = [ size, size ]
 
-	# The canvas we will draw the current guess on
+	video = null
+	triangleCount = trianglesKept = 0
+
+	# The canvas we will draw the current image on
 	canvas = $.synth("canvas.stop").prependTo("body")
 	context = canvas.first().getContext('2d')
+	# Extend our drawing context
 	context.clear = (c = 'black') ->
 		@fillStyle = c
 		@fillRect 0,0,width,height
 	randomPoint = -> $ $.random.integer(0, width), $.random.integer(0,height)
 	randomColor = -> "rgba(#{$.random.integer 0,256},#{$.random.integer 0,256},#{$.random.integer 0,256}, .5)"
-	triangleCount = 0
+
+	scaleBalance = [.80, .20]
 	context.randomTriangle = ->
+		n = $.random.real(.50, .97)
+		scaleBalance = [n, 1 - n]
 		triangleCount += 1
-		offset = randomPoint().scale(.85)
+		offset = randomPoint().scale(scaleBalance[0])
 		@beginPath()
-		@moveTo (a = randomPoint().scale(.15).plus offset)...
-		@lineTo randomPoint().scale(.15).plus(offset)...
-		@lineTo randomPoint().scale(.15).plus(offset)...
-		@lineTo a...
+		@moveTo (start = randomPoint().scale(scaleBalance[1]).plus offset)...
+		@lineTo randomPoint().scale(scaleBalance[1]).plus(offset)...
+		@lineTo randomPoint().scale(scaleBalance[1]).plus(offset)...
+		@lineTo start...
 		@closePath()
 		@fillStyle = randomColor()
 		@fill()
@@ -46,22 +56,25 @@ $(document).ready ->
 			return cb "unsupported", null
 		onVideo = (stream) ->
 			$.log "onVideo", stream
-			video = $.synth("video[width=320][height=240]")
+			video = $.synth("video[width=#{width}][height=#{height}]")
+				.css({ width: $.px(width), height: $.px(height) })
 				.attr('src', URL.createObjectURL stream)
 				.prependTo("body")
 				.first()
 			video.addEventListener 'loadedmetadata', (evt) ->
 				$.log "on loadedmetadata", evt
 				video.play()
-				[width, height] = [320,240]
-				canvas.attr { width, height }
+				canvas.attr({ width, height }).css({
+					width: $.px(width)
+					height: $.px(height)
+				})
 				context = canvas.first().getContext('2d')
 				$.delay 1000, ->
 					$.log "Drawing to canvas", video
-					video.pause()
+					# video.pause()
 					context.drawImage video, 0, 0, width, height
 					cb null, video
-					$("video").remove()
+					# $("video").remove()
 		onError = (err) -> cb err, null
 		navigator.getUserMedia { video: true }, onVideo, onError
 
@@ -69,13 +82,11 @@ $(document).ready ->
 	setupImage = (cb) ->
 		$.Promise.image("earring.jpg").wait (err, image) ->
 			return cb(err, null) if err?
-			$(image).attr({width:320,height:240}).prependTo("body")
-			{width, height} = image
+			$(image).attr({ width, height }).prependTo("body")
 			canvas.attr { width, height }
 			context.drawImage image, 0, 0, width, height
 			cb null, image
 
-	trianglesKept = 0
 	runtime = 0
 	last_frame = 0
 	frame = ->
@@ -84,7 +95,7 @@ $(document).ready ->
 		runtime += dt
 		last_frame += dt
 		context.randomTriangle()
-		$.delay 0, ->
+		do ->
 			current = context.getImageData 0, 0, width, height
 			current.dist = imageDistance current.data, original.data
 			if current.dist < best.dist
@@ -94,6 +105,14 @@ $(document).ready ->
 			context.putImageData best, 0, 0
 			if best.dist > 100 and not stopped
 				setTimeout frame, 0
+	
+	replaceOriginalFromVideo = ->
+		return unless video?
+		_canvas = $.synth("canvas.offstage").attr({ width, height })
+		_context =  _canvas.first().getContext('2d')
+		_context.drawImage video, 0, 0, width, height
+		original = _context.getImageData 0, 0, width, height
+		original.dist = best.dist = imageDistance best.data, original.data
 
 	stageReady = ->
 		$.log "Stage is ready."
@@ -119,7 +138,10 @@ $(document).ready ->
 				$.log "setupImage ->", err, image
 				unless err? then stageReady()
 				$("img").hide()
-			else stageReady()
+			else
+				canvas.first().scrollIntoView()
+				# $.interval 1000, replaceOriginalFromVideo
+				stageReady()
 
 	setGradient = (selector, pct, opts) ->
 		opts = $.extend({ fg: 'green', bg: 'white' }, opts)
@@ -137,6 +159,7 @@ $(document).ready ->
 			$("#progress").text("")
 
 	window.setProgress = (cur, max) ->
+		return
 		pct = 100 * (max - cur) / max
 		node = $("#progress")
 		setGradient(node, pct)
