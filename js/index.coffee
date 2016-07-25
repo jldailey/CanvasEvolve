@@ -3,10 +3,13 @@ console.log "waiting..."
 $(document).ready ->
 	console.log "setting up..."
 	imageDistance = (a, b) ->
-		sum = 0
+		sum = 0|0
 		for i in [0...Math.min a.length, b.length] by 1
-			sum += Math.pow (a[i] - b[i]), 2
-		Math.sqrt(sum)
+			x = a[i]|0
+			y = b[i]|0
+			z = (x - y)|0
+			sum += Math.pow(z,2)|0
+		Math.sqrt(sum)|0
 
 	# These are the 3 imageData objects that we track:
 	original = best = current = null
